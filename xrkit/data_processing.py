@@ -66,8 +66,8 @@ def csv_to_shp(csv_path: str, shp_path: str,
     print(f"{shp_name} saved ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())})")
 
 
-def zonal_statistics(value_raster: str,
-                    zone_file: str,
+def zonal_statistics(value_file,
+                    zone_file,
                     zone_field=None,
                     statistic_type='mean',
                     bins=None,
@@ -76,55 +76,65 @@ def zonal_statistics(value_raster: str,
     20250523
     Calculate zonal statistics.
 
-    :param value_raster: The path of the value raster.
+    :param value_file: The path of the value raster.
     :param zone_file: The path of the zone file.
     :param zone_field: The field name of the zone file.
     :param bins: The bins for grouping the zone data.
     :param statistic_type: The type of statistic.
     :param write_raster: The path of the output raster.
     """
-    
-    # 当zone_file是shp文件时，必须指定分区的字段名zone_field
-    if zone_file.endswith(".shp") and zone_field is None:
-        raise ValueError("当“zone_field”是shp文件时，必须指定分区的字段名“zone_field”")
 
-    # 读取分区数据和栅格数据
-    if zone_file.endswith(".shp"):
-        try:
-            zone_data = gpd.read_file(zone_file)
-            value_data = rxr.open_rasterio(value_raster, masked=True).rio.clip(
-                zone_data.geometry.values, zone_data.crs, from_disk=True
-            ).sel(band=1).drop_vars("band").astype(float)
-        except:
-            raise ValueError("读取zone_file或value_raster失败")
-
-        # 如果shp的zone_field为文字
+    # Read the zone data and raster data
+    if str(zone_file).endswith(".shp") or isinstance(zone_file, gpd.GeoDataFrame):
+        if zone_field is None:
+            raise ValueError("The field name 'zone_field' must be specified")
+        
+        if str(zone_file).endswith(".shp"):
+            zone_data = gpd.read_file(zone_file)    
+        if isinstance(zone_file, gpd.GeoDataFrame):
+            zone_data = zone_file
+        if str(value_file).endswith(".tif"):
+            value_data = rxr.open_rasterio(value_file, masked=True)
+        if isinstance(value_file, xr.DataArray):
+            value_data = value_file           
+            
+        value_data = value_data.rio.clip(
+        zone_data.geometry.values, zone_data.crs, from_disk=True
+         ).sel(band=1).drop_vars("band").astype(float)
+        
+        # If the zone_field of the shp is text
         if zone_data[zone_field].dtype == 'object':
-            # 将zone_field转换为数字
+            # Convert zone_field to numeric
             zone_data['zone'] = pd.Categorical(zone_data[zone_field])
             zone_data['zone'] = zone_data['zone'].cat.codes
         else:
             zone_data['zone'] = zone_data[zone_field]
 
-        # 将分区数据栅格化
+        # Rasterize the zone data
         combined_data = make_geocube(
             vector_data=zone_data,
             measurements=['zone'],
             like=value_data,
         )
 
-        # 将分区数据和值数据合并
+        # Combine the zone data and value data
         combined_data["value"] = value_data
 
-    # 读取栅格数据
-    elif zone_file.endswith(".tif"):
-        try:
-            zone_data = rxr.open_rasterio(zone_file, masked=True).sel(band=1).drop_vars("band")
-            value_data = rxr.open_rasterio(value_raster, masked=True).sel(band=1).drop_vars("band")
-        except:
-            raise ValueError("读取zone_file或value_raster失败")
+    # Read the raster data
+    elif str(zone_file).endswith(".tif") or isinstance(zone_file, xr.DataArray):
+        if str(zone_file).endswith(".tif"):
+            zone_data = rxr.open_rasterio(zone_file, masked=True)
+        if isinstance(zone_file, xr.DataArray):
+            zone_data = zone_file
+        if str(value_file).endswith(".tif"):
+            value_data = rxr.open_rasterio(value_file, masked=True)
+        if isinstance(value_file, xr.DataArray):
+            value_data = value_file
+            
+        zone_data = zone_data.sel(band=1).drop_vars("band")
+        value_data = value_data.sel(band=1).drop_vars("band")
         
-        # 对齐分区数据和值数据
+        # Align the zone data and value data
         if zone_data.rio.resolution()[0] <= value_data.rio.resolution()[0]:
             projected_value_data = value_data.rio.reproject_match(
                 zone_data,
@@ -139,20 +149,20 @@ def zonal_statistics(value_raster: str,
             combined_data = xr.merge([projected_zone_data.rename('zone'), value_data.rename('value')])
             
     else:   
-        raise ValueError("zone_file必须是shp或tif文件")
+        raise ValueError("zone_file must be a shp or tif file")
 
-    # 若bins不为空，则对分区数据进行分组
+    # If bins is not None, group the zone data
     if bins is not None:
         zone_values = combined_data['zone'].values
         zone_values_na = np.isnan(zone_values)
         group_indices = np.digitize(zone_values, bins)
         combined_data['zone'].values[~zone_values_na] = group_indices[~zone_values_na]
 
-    # 计算分区统计值
+    # Calculate zonal statistics
     combined_data = combined_data.set_coords('zone')
     grouped_value = combined_data.drop_vars("spatial_ref").groupby('zone')
 
-    ## 计算统计值
+    # Calculate statistics
     if statistic_type == 'mean':
         zonal_stat = grouped_value.mean().rename({"value": statistic_type})
     elif statistic_type == 'max':
@@ -168,17 +178,18 @@ def zonal_statistics(value_raster: str,
     elif statistic_type == 'count':
         zonal_stat = grouped_value.count().rename({"value": statistic_type})
     else:
-        raise ValueError("统计类型必须是'mean', 'max', 'min', 'sum', 'median', 'std'或'count'")
+        raise ValueError("statistic_type must be 'mean', 'max', 'min', 'sum', 'median', 'std' or 'count'")
 
+    # Convert zonal_stat to DataFrame
     zonal_stat = zonal_stat.to_dataframe()
     
-    # 若bins不为空，则将分组名称赋值到zone_field列
+    # If bins is not None, assign group names to the zone_field column
     if bins is not None:
         group_names = [f"{bins[i]}-{bins[i+1]}" for i in range(len(bins)-1)]
         group_names.insert(0, f"<{bins[0]}")
         group_names.append(f">{bins[-1]}")
 
-        # 删把group_names赋值到zone_field列
+        # Assign group_names to the zone_field column
         zonal_stat['zone_value'] = zonal_stat.index
         zonal_stat.reset_index(drop=True, inplace=True)
         zonal_stat['classes'] = ''
@@ -186,16 +197,16 @@ def zonal_statistics(value_raster: str,
             zonal_stat.loc[zonal_stat['zone_value'] == i, 'classes'] = group_names[i]
     else:
         if zone_data[zone_field].dtype == 'object':
-            # 通过查表将zonal_stat的zonal_stat.index转化为zone_field列赋值到zone_field列
+            # Map the zonal_stat.index to the zone_field column
             zonal_stat['classes'] = zonal_stat.index.map(zone_data.set_index('zone')[zone_field])
             zonal_stat.reset_index(drop=True, inplace=True)
         else:
             zonal_stat['classes'] = zonal_stat.index
             zonal_stat.reset_index(drop=True, inplace=True)
 
-    # 若write_raster不为空，则导出到write_raster
+    # If write_raster is not None, export to write_raster
     if write_raster is not None:
-        # 根据zonal_stat的结果赋值到tif文件
+        # Assign the results of zonal_stat to the tif file
         if bins is not None:
             for i in range(len(zonal_stat)):
                 combined_data['zone'].values[combined_data['zone'].values == zonal_stat.loc[i, 'zone_value']] = zonal_stat.loc[i, statistic_type]
@@ -203,11 +214,11 @@ def zonal_statistics(value_raster: str,
             for i in range(len(zonal_stat)):
                 combined_data['zone'].values[combined_data['zone'].values == zonal_stat.loc[i, 'classes']] = zonal_stat.loc[i, statistic_type]
         
-        # 导出到write_raster
+        # Export to write_raster
         combined_data['zone'].rio.to_raster(write_raster)
         print(f"{os.path.basename(write_raster)} saved ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())})")
     
-    # 如果zonal_stat存在'zone_value'列，则删除该列
+    # If zonal_stat has 'zone_value' column, drop it
     if 'zone_value' in zonal_stat.columns:
         zonal_stat.drop(columns='zone_value', inplace=True)
 
