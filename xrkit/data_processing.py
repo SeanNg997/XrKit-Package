@@ -1,5 +1,6 @@
 import os
 import time
+import math
 import chardet
 import numpy as np
 import pandas as pd
@@ -8,6 +9,7 @@ import rasterio as rio
 import rioxarray as rxr
 import xarray as xr
 
+from affine import Affine
 from pyproj import CRS
 from geocube.api.core import make_geocube
 
@@ -76,8 +78,8 @@ def zonal_statistics(value_file,
     20250523
     Calculate zonal statistics.
 
-    :param value_file: The path of the value raster.
-    :param zone_file: The path of the zone file.
+    :param value_file: The path of the value raster (or xr.DataArray).
+    :param zone_file: The path of the zone file (or gpd.GeoDataFrame).
     :param zone_field: The field name of the zone file.
     :param bins: The bins for grouping the zone data.
     :param statistic_type: The type of statistic.
@@ -223,3 +225,92 @@ def zonal_statistics(value_file,
         zonal_stat.drop(columns='zone_value', inplace=True)
 
     return zonal_stat
+
+
+def reproject_to_wgs84(input_raster,
+                       output_raster,
+                       resolution,
+                       resample_method='n'):
+    """
+    Reproject the input raster (tif path or xr.DataArray) to WGS84 (EPSG:4326).
+    The output image only covers the input data area, but the pixels must align with the global grid.
+    The center coordinates of the first (top-left) pixel of the global grid are (resolution/2, 180 - resolution/2).
+    """
+    # 1. If the input is a tif file path, open it with rioxarray
+    if str(input_raster).endswith(".tif"):
+        da = rxr.open_rasterio(input_raster)
+    elif isinstance(input_raster, xr.DataArray):
+        da = input_raster
+    else:
+        raise ValueError(
+            "input_raster must be a tif path or an xr.DataArray object")
+
+    # 2. The target coordinate system is EPSG:4326 (WGS84)
+    target_crs = "EPSG:4326"
+
+    # 3. Get the bounds of the input data in its original CRS and transform them to the target CRS
+    src_crs = da.rio.crs
+    left, bottom, right, top = da.rio.bounds()
+    t_left, t_bottom, t_right, t_top = rio.warp.transform_bounds(
+        src_crs, target_crs, left, bottom, right, top, densify_pts=21)
+
+    # 4. Align the output extent with the global target grid
+    #
+    # The global target grid is defined (assuming the global grid's initial transform is):
+    #   T_global = Affine(res, 0, 0, 0, -res, 180)
+    # The pixel center is at (0 + res/2, 180 - res/2) for the first pixel,
+    # and each subsequent column/row adds/subtracts res.
+    #
+    # For the x direction: pixel center x = res/2 + k·res, where k is an integer,
+    # find the smallest integer k_min such that the center is not less than t_left,
+    # and the largest integer k_max such that the center is not greater than t_right.
+    k_min = math.ceil((t_left - resolution/2) / resolution)
+    k_max = math.floor((t_right - resolution/2) / resolution)
+    # For the y direction: pixel center y = 180 - res/2 - l·res, where l is an integer,
+    # Note: In geographic coordinates, larger y values are at the top.
+    # Find the smallest integer l_min such that the center is not less than t_top
+    #  (t_top is the upper bound after reprojection),
+    # and the largest integer l_max such that the center is not greater than t_bottom.
+    l_min = math.ceil((180 - resolution/2 - t_top) / resolution)
+    l_max = math.floor((180 - resolution/2 - t_bottom) / resolution)
+
+    # The number of rows and columns in the output image
+    out_width = k_max - k_min + 1
+    out_height = l_max - l_min + 1
+
+    if out_width <= 0 or out_height <= 0:
+        raise ValueError(
+            "The calculated output extent is empty, please check the input data and resolution settings.")
+
+    # 5. Construct the affine transform for the output raster
+    # For the global grid T_global = Affine(res, 0, 0, 0, -res, 180),
+    # the top-left pixel of the subgrid is the (k_min, l_min) pixel in the global grid,
+    # its center coordinates are (res/2 + k_min·res, 180 - res/2 - l_min·res).
+    # Construct the affine transform for the subgrid:
+    new_transform = Affine(resolution, 0, k_min * resolution,
+                           0, -resolution, 180 - l_min * resolution)
+
+    # 6. Choose the resampling method
+    resample_dict = {
+        'n': rio.enums.Resampling.nearest,
+        'b': rio.enums.Resampling.bilinear,
+        'c': rio.enums.Resampling.cubic,
+        # Add more options as needed
+    }
+    resampling = resample_dict.get(resample_method.lower())
+
+    # 7. Use rioxarray's reproject method to perform the reprojection,
+    #    specifying the target CRS, output affine transform, output shape, and resampling method
+    reprojected = da.rio.reproject(
+        target_crs,
+        transform=new_transform,
+        shape=(out_height, out_width),
+        resampling=resampling
+    )
+
+    # 8. Write the reprojected data to the specified path
+    reprojected.rio.to_raster(output_raster)
+
+    # 9. Print the time when the file is saved.
+    output_tif_name = os.path.basename(output_raster)
+    print(f"{output_tif_name} saved ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())})")
