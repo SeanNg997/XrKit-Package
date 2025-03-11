@@ -12,4 +12,5 @@
 2. 使用`xrkit.show_functions()`可查看xrkit库中的所有函数名称及简介。
 
 
-<p style="font-style:italic; font-weight:bold; text-align:right;">更新日期：2025.3.11</p>
+
+***更新日期：2025.3.11***
