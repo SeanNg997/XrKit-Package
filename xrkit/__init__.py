@@ -9,6 +9,7 @@ csv_to_shp = xrkit.data_processing.csv_to_shp
 zonal_statistics = xrkit.data_processing.zonal_statistics
 reproject_to_wgs84 = xrkit.data_processing.reproject_to_wgs84
 aggregate = xrkit.data_processing.aggregate
+parafun = xrkit.data_processing.parafun
 
 # function list
 function_list = {
@@ -17,7 +18,8 @@ function_list = {
     'csv_to_shp': 'csv文件转shp文件',
     'zonal_statistics': '分区统计',
     'reproject_to_wgs84': '投影到WGS84坐标系（对齐格网）',
-    'aggregate': '聚合'
+    'aggregate': '聚合',
+    'parafun': '并行计算'
 }
 
 # show functions

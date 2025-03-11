@@ -8,7 +8,8 @@ import geopandas as gpd
 import rasterio as rio
 import rioxarray as rxr
 import xarray as xr
-
+import multiprocessing
+from tqdm import tqdm
 from affine import Affine
 from pyproj import CRS
 from geocube.api.core import make_geocube
@@ -433,3 +434,23 @@ def aggregate(input_raster,
 
     output_tif_name = os.path.basename(output_raster)
     print(f"{output_tif_name} saved ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())})")
+
+
+def parafun(fun, params, ncore=multiprocessing.cpu_count()):
+    """
+    20250311
+    Run a function in parallel
+
+    :param fun: function, the function to run
+    :param params: list, the parameters for the function
+    :param ncore: int, the number of cores to use
+    :return: list, the results of the function
+    """
+    ncore = min(ncore, len(params))
+    pool = multiprocessing.Pool(ncore)
+    results = list(tqdm(pool.imap(fun, params), total=len(params)))
+    pool.close()
+    pool.join()
+    
+    print("All tasks are done.")
+    return results
