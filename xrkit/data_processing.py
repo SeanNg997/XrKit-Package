@@ -69,11 +69,11 @@ def csv_to_shp(csv_path: str, shp_path: str,
 
 
 def zonal_statistics(value_file,
-                    zone_file,
-                    zone_field=None,
-                    statistical_type='mean',
-                    bins=None,
-                    write_raster=None):
+                     zone_file,
+                     zone_field=None,
+                     statistical_type='mean',
+                     bins=None,
+                     write_raster=None):
     """
     20250523
     Calculate zonal statistics.
@@ -90,20 +90,20 @@ def zonal_statistics(value_file,
     if str(zone_file).endswith(".shp") or isinstance(zone_file, gpd.GeoDataFrame):
         if zone_field is None:
             raise ValueError("The field name 'zone_field' must be specified")
-        
+
         if str(zone_file).endswith(".shp"):
-            zone_data = gpd.read_file(zone_file)    
+            zone_data = gpd.read_file(zone_file)
         if isinstance(zone_file, gpd.GeoDataFrame):
             zone_data = zone_file
         if str(value_file).endswith(".tif"):
             value_data = rxr.open_rasterio(value_file, masked=True)
         if isinstance(value_file, xr.DataArray):
-            value_data = value_file           
-            
+            value_data = value_file
+
         value_data = value_data.rio.clip(
-        zone_data.geometry.values, zone_data.crs, from_disk=True
-         ).sel(band=1).drop_vars("band").astype(float)
-        
+            zone_data.geometry.values, zone_data.crs, from_disk=True
+        ).sel(band=1).drop_vars("band").astype(float)
+
         # If the zone_field of the shp is text
         if zone_data[zone_field].dtype == 'object':
             # Convert zone_field to numeric
@@ -132,25 +132,27 @@ def zonal_statistics(value_file,
             value_data = rxr.open_rasterio(value_file, masked=True)
         if isinstance(value_file, xr.DataArray):
             value_data = value_file
-            
+
         zone_data = zone_data.sel(band=1).drop_vars("band")
         value_data = value_data.sel(band=1).drop_vars("band")
-        
+
         # Align the zone data and value data
         if zone_data.rio.resolution()[0] <= value_data.rio.resolution()[0]:
             projected_value_data = value_data.rio.reproject_match(
                 zone_data,
                 resampling=rio.enums.Resampling.nearest
             )
-            combined_data = xr.merge([zone_data.rename('zone'), projected_value_data.rename('value')])
+            combined_data = xr.merge(
+                [zone_data.rename('zone'), projected_value_data.rename('value')])
         else:
             projected_zone_data = zone_data.rio.reproject_match(
                 value_data,
                 resampling=rio.enums.Resampling.nearest
             )
-            combined_data = xr.merge([projected_zone_data.rename('zone'), value_data.rename('value')])
-            
-    else:   
+            combined_data = xr.merge(
+                [projected_zone_data.rename('zone'), value_data.rename('value')])
+
+    else:
         raise ValueError("zone_file must be a shp or tif file")
 
     # If bins is not None, group the zone data
@@ -180,11 +182,12 @@ def zonal_statistics(value_file,
     elif statistical_type == 'count':
         zonal_stat = grouped_value.count().rename({"value": statistical_type})
     else:
-        raise ValueError("statistical_type must be 'mean', 'max', 'min', 'sum', 'median', 'std' or 'count'")
+        raise ValueError(
+            "statistical_type must be 'mean', 'max', 'min', 'sum', 'median', 'std' or 'count'")
 
     # Convert zonal_stat to DataFrame
     zonal_stat = zonal_stat.to_dataframe()
-    
+
     # If bins is not None, assign group names to the zone_field column
     if bins is not None:
         group_names = [f"{bins[i]}-{bins[i+1]}" for i in range(len(bins)-1)]
@@ -196,11 +199,13 @@ def zonal_statistics(value_file,
         zonal_stat.reset_index(drop=True, inplace=True)
         zonal_stat['classes'] = ''
         for i in range(len(group_names)):
-            zonal_stat.loc[zonal_stat['zone_value'] == i, 'classes'] = group_names[i]
+            zonal_stat.loc[zonal_stat['zone_value']
+                           == i, 'classes'] = group_names[i]
     else:
         if zone_data[zone_field].dtype == 'object':
             # Map the zonal_stat.index to the zone_field column
-            zonal_stat['classes'] = zonal_stat.index.map(zone_data.set_index('zone')[zone_field])
+            zonal_stat['classes'] = zonal_stat.index.map(
+                zone_data.set_index('zone')[zone_field])
             zonal_stat.reset_index(drop=True, inplace=True)
         else:
             zonal_stat['classes'] = zonal_stat.index
@@ -211,15 +216,17 @@ def zonal_statistics(value_file,
         # Assign the results of zonal_stat to the tif file
         if bins is not None:
             for i in range(len(zonal_stat)):
-                combined_data['zone'].values[combined_data['zone'].values == zonal_stat.loc[i, 'zone_value']] = zonal_stat.loc[i, statistical_type]
+                combined_data['zone'].values[combined_data['zone'].values ==
+                                             zonal_stat.loc[i, 'zone_value']] = zonal_stat.loc[i, statistical_type]
         else:
             for i in range(len(zonal_stat)):
-                combined_data['zone'].values[combined_data['zone'].values == zonal_stat.loc[i, 'classes']] = zonal_stat.loc[i, statistical_type]
-        
+                combined_data['zone'].values[combined_data['zone'].values ==
+                                             zonal_stat.loc[i, 'classes']] = zonal_stat.loc[i, statistical_type]
+
         # Export to write_raster
         combined_data['zone'].rio.to_raster(write_raster)
         print(f"{os.path.basename(write_raster)} saved ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())})")
-    
+
     # If zonal_stat has 'zone_value' column, drop it
     if 'zone_value' in zonal_stat.columns:
         zonal_stat.drop(columns='zone_value', inplace=True)
@@ -241,7 +248,7 @@ def reproject_to_wgs84(input_raster,
     :param output_raster: The path of the output raster.
     :param resolution: The targeted resolution.
     :param resample_method: The resampling method.
-    """ 
+    """
 
     # 1. If the input is a tif file path, open it with rioxarray
     if str(input_raster).endswith(".tif"):
@@ -328,7 +335,8 @@ def aggregate(input_raster,
               resolution,
               output_crs='EPSG:4326',
               statistical_type='mean',
-              resample_method='n'):
+              resample_method='n',
+              align=True):
     """
     20250311
     Perform upscaling on the input raster
@@ -336,10 +344,12 @@ def aggregate(input_raster,
     :param input_raster: path to the input raster (or xr.DataArray)
     :param output_raster: path to the output raster
     :param resolution: target resolution (unit: degree)
-    :param output_crs: str, optional, output CRS, default is 'EPSG:4326'
+    :param output_crs: optional, output CRS or tif path, default is 'EPSG:4326'
     :param resample_method: str, optional, resample method, default is 'n' (nearest)
     :param statistical_type: str, optional, statistical type, default is 'mean'
+    :param align: bool, optional, whether or not to align the raster when output_crs is a tif path
     """
+
     # Open the input raster
     if str(input_raster).endswith(".tif"):
         raster = rxr.open_rasterio(input_raster)
@@ -348,7 +358,7 @@ def aggregate(input_raster,
     else:
         raise ValueError(
             "input_raster must be a tif path or an xr.DataArray object")
-    
+
     # Choose the resampling method
     resample_dict = {
         'n': rio.enums.Resampling.nearest,
@@ -359,9 +369,20 @@ def aggregate(input_raster,
     resampling = resample_dict.get(resample_method.lower())
 
     # Reproject
-    raster = raster.rio.reproject(
-        dst_crs=output_crs,
-        resampling=resampling)
+    if str(output_crs).endswith(".tif"):
+        reference_raster = rxr.open_rasterio(output_crs)
+        reference_crs = reference_raster.rio.crs
+        raster = raster.rio.reproject(
+            dst_crs=reference_crs,
+            resampling=rio.enums.Resampling.nearest
+        )
+    elif str(output_crs).lower().startswith("epsg"):
+        raster = raster.rio.reproject(
+            dst_crs=output_crs,
+            resampling=resampling)
+    else:
+        raise ValueError(
+            "output_crs必须为一个epsg格式的坐标系或是一个tif栅格。")
 
     # Calculate the resolution ratio of the new raster
     orig_res_x = orig_res_y = abs(raster.rio.resolution()[0])
@@ -385,12 +406,27 @@ def aggregate(input_raster,
             x=scale_factor_x, y=scale_factor_y, boundary='trim').count()
     else:
         raise ValueError(f"Unknown statistical type: {statistical_type}")
-    
+
     # Resample to ensure new_data has the target resolution
-    new_data = new_data.rio.reproject(
-        dst_crs=output_crs,
-        resolution=resolution,
-        resampling=rio.enums.Resampling.nearest)
+    if str(output_crs).endswith(".tif"):
+        if align==True:
+            new_data = new_data.rio.reproject_match(
+                reference_raster,
+                resampling=rio.enums.Resampling.nearest
+            )
+        elif align==False:
+            new_data = new_data.rio.reproject(
+                dst_crs=reference_crs,
+                resolution=resolution,
+                resampling=rio.enums.Resampling.nearest)
+    elif str(output_crs).lower().startswith("epsg"):
+        new_data = new_data.rio.reproject(
+            dst_crs=output_crs,
+            resolution=resolution,
+            resampling=rio.enums.Resampling.nearest)
+    else:
+        raise ValueError(
+            "output_crs必须为一个epsg格式的坐标系或是一个tif栅格。")
 
     # Update metadata and save
     new_data.rio.to_raster(output_raster)
