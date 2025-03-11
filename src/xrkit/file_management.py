@@ -30,7 +30,7 @@ def get_files_in_directory(folder_path=os.getcwd(), extension='', rootpath=False
         
         for root, dirs, files in os.walk(folder_path):
             for file in files:
-                if file.lower().endswith(extension):  # 忽略大小写
+                if file.lower().endswith(extension.lower()):  # 忽略大小写
                     filesList.append(file)
 
     # If the extension is empty, get all the files.

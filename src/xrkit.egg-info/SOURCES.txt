@@ -2,6 +2,9 @@ LICENSE
 README.md
 pyproject.toml
 setup.cfg
+src/xrkit/__init__.py
+src/xrkit/data_processing.py
+src/xrkit/file_management.py
 src/xrkit.egg-info/PKG-INFO
 src/xrkit.egg-info/SOURCES.txt
 src/xrkit.egg-info/dependency_links.txt
