@@ -8,24 +8,17 @@
 
 # 💡XrKit使用指南
 
-1. `User Guide.ipynb`文件提供了详细的教程；
-2. 使用`xrkit.show_functions()`可查看xrkit库中的所有函数名称及简介；
-3. 安装XrKit不会附带安装运行代码所必须的库，请检查以下库是否可以正常导入：
+1. 安装XrKit不会附带安装运行代码所必须的库，请检查以下库是否导入；
 
 ```python
-import chardet
-import numpy
-import pandas
-import geopandas
-import rasterio
-import rioxarray
-import xarray
-import tqdm
-import affine
-import pyproj
-import geocube
+import numpy, pandas, xarray
+import chardet, tqdm
+import rasterio, rioxarray
+import geopandas, geocube, affine, pyproj
 ```
+2. `User Guide.ipynb`文件提供了详细的教程；
 
+3. 使用`xrkit.show_functions()`可查看xrkit库中的所有函数名称及简介；
 ---
 
 ***更新日期：2025.3.11***
