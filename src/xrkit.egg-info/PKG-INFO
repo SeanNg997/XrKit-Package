@@ -1,0 +1,23 @@
+Metadata-Version: 2.2
+Name: xrkit
+Version: 1.0
+Summary: A package for geographic research for personal use
+Home-page: https://github.com/SeanNg997/XrKit-Package
+Author: Xiaoran Wu
+Author-email: wu_xiaoran@outlook.com
+Project-URL: Bug Tracker, https://github.com/SeanNg997/XrKit-Package
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+# 💡whl安装包使用方法
+1. 使用命令行进入whl安装包所在路径；
+2. 使用`pip install xrkit-1.0-py3-none-any.whl`进行安装；
+3. 在自己的代码中使用`import xrkit`使用。
+
+
+
+***更新日期：2025.3.11***

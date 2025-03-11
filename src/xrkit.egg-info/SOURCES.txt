@@ -1,0 +1,8 @@
+LICENSE
+README.md
+pyproject.toml
+setup.cfg
+src/xrkit.egg-info/PKG-INFO
+src/xrkit.egg-info/SOURCES.txt
+src/xrkit.egg-info/dependency_links.txt
+src/xrkit.egg-info/top_level.txt
