@@ -6,9 +6,9 @@
 
 
 
-# 💡XrKit使用指南
+# 💡XrKit库使用指南
 
-1. 安装XrKit不会附带安装运行代码所必须的库，请检查以下库是否导入；
+1. 安装XrKit库不会附带安装运行代码所必须的库，请检查以下库是否可正确导入；
 
 ```python
 import numpy, pandas, xarray
