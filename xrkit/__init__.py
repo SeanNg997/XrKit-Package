@@ -8,6 +8,7 @@ print_file_save_time = xrkit.file_management.print_file_save_time
 csv_to_shp = xrkit.data_processing.csv_to_shp
 zonal_statistics = xrkit.data_processing.zonal_statistics
 reproject_to_wgs84 = xrkit.data_processing.reproject_to_wgs84
+aggregate = xrkit.data_processing.aggregate
 
 # function list
 function_list = {
@@ -15,7 +16,8 @@ function_list = {
     'print_file_save_time': '打印文件保存时间',
     'csv_to_shp': 'csv文件转shp文件',
     'zonal_statistics': '分区统计',
-    'reproject_to_wgs84': '投影到WGS84坐标系（对齐全局格网）'
+    'reproject_to_wgs84': '投影到WGS84坐标系（对齐格网）',
+    'aggregate': '聚合'
 }
 
 # show functions

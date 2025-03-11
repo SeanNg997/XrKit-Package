@@ -71,7 +71,7 @@ def csv_to_shp(csv_path: str, shp_path: str,
 def zonal_statistics(value_file,
                     zone_file,
                     zone_field=None,
-                    statistic_type='mean',
+                    statistical_type='mean',
                     bins=None,
                     write_raster=None):
     """
@@ -82,7 +82,7 @@ def zonal_statistics(value_file,
     :param zone_file: The path of the zone file (or gpd.GeoDataFrame).
     :param zone_field: The field name of the zone file.
     :param bins: The bins for grouping the zone data.
-    :param statistic_type: The type of statistic.
+    :param statistical_type: The type of statistic.
     :param write_raster: The path of the output raster.
     """
 
@@ -165,22 +165,22 @@ def zonal_statistics(value_file,
     grouped_value = combined_data.drop_vars("spatial_ref").groupby('zone')
 
     # Calculate statistics
-    if statistic_type == 'mean':
-        zonal_stat = grouped_value.mean().rename({"value": statistic_type})
-    elif statistic_type == 'max':
-        zonal_stat = grouped_value.max().rename({"value": statistic_type})
-    elif statistic_type == 'min':
-        zonal_stat = grouped_value.min().rename({"value": statistic_type})
-    elif statistic_type == 'sum':
-        zonal_stat = grouped_value.sum().rename({"value": statistic_type})
-    elif statistic_type == 'median':
-        zonal_stat = grouped_value.median().rename({"value": statistic_type})
-    elif statistic_type == 'std':
-        zonal_stat = grouped_value.std().rename({"value": statistic_type})
-    elif statistic_type == 'count':
-        zonal_stat = grouped_value.count().rename({"value": statistic_type})
+    if statistical_type == 'mean':
+        zonal_stat = grouped_value.mean().rename({"value": statistical_type})
+    elif statistical_type == 'max':
+        zonal_stat = grouped_value.max().rename({"value": statistical_type})
+    elif statistical_type == 'min':
+        zonal_stat = grouped_value.min().rename({"value": statistical_type})
+    elif statistical_type == 'sum':
+        zonal_stat = grouped_value.sum().rename({"value": statistical_type})
+    elif statistical_type == 'median':
+        zonal_stat = grouped_value.median().rename({"value": statistical_type})
+    elif statistical_type == 'std':
+        zonal_stat = grouped_value.std().rename({"value": statistical_type})
+    elif statistical_type == 'count':
+        zonal_stat = grouped_value.count().rename({"value": statistical_type})
     else:
-        raise ValueError("statistic_type must be 'mean', 'max', 'min', 'sum', 'median', 'std' or 'count'")
+        raise ValueError("statistical_type must be 'mean', 'max', 'min', 'sum', 'median', 'std' or 'count'")
 
     # Convert zonal_stat to DataFrame
     zonal_stat = zonal_stat.to_dataframe()
@@ -211,10 +211,10 @@ def zonal_statistics(value_file,
         # Assign the results of zonal_stat to the tif file
         if bins is not None:
             for i in range(len(zonal_stat)):
-                combined_data['zone'].values[combined_data['zone'].values == zonal_stat.loc[i, 'zone_value']] = zonal_stat.loc[i, statistic_type]
+                combined_data['zone'].values[combined_data['zone'].values == zonal_stat.loc[i, 'zone_value']] = zonal_stat.loc[i, statistical_type]
         else:
             for i in range(len(zonal_stat)):
-                combined_data['zone'].values[combined_data['zone'].values == zonal_stat.loc[i, 'classes']] = zonal_stat.loc[i, statistic_type]
+                combined_data['zone'].values[combined_data['zone'].values == zonal_stat.loc[i, 'classes']] = zonal_stat.loc[i, statistical_type]
         
         # Export to write_raster
         combined_data['zone'].rio.to_raster(write_raster)
@@ -232,10 +232,17 @@ def reproject_to_wgs84(input_raster,
                        resolution,
                        resample_method='n'):
     """
+    20250311
     Reproject the input raster (tif path or xr.DataArray) to WGS84 (EPSG:4326).
     The output image only covers the input data area, but the pixels must align with the global grid.
     The center coordinates of the first (top-left) pixel of the global grid are (resolution/2, 180 - resolution/2).
-    """
+
+    :param input_raster: The path of the input raster (or xr.DataArray).
+    :param output_raster: The path of the output raster.
+    :param resolution: The targeted resolution.
+    :param resample_method: The resampling method.
+    """ 
+
     # 1. If the input is a tif file path, open it with rioxarray
     if str(input_raster).endswith(".tif"):
         da = rxr.open_rasterio(input_raster)
@@ -312,5 +319,81 @@ def reproject_to_wgs84(input_raster,
     reprojected.rio.to_raster(output_raster)
 
     # 9. Print the time when the file is saved.
+    output_tif_name = os.path.basename(output_raster)
+    print(f"{output_tif_name} saved ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())})")
+
+
+def aggregate(input_raster,
+              output_raster,
+              resolution,
+              output_crs='EPSG:4326',
+              statistical_type='mean',
+              resample_method='n'):
+    """
+    20250311
+    Perform upscaling on the input raster
+
+    :param input_raster: path to the input raster (or xr.DataArray)
+    :param output_raster: path to the output raster
+    :param resolution: target resolution (unit: degree)
+    :param output_crs: str, optional, output CRS, default is 'EPSG:4326'
+    :param resample_method: str, optional, resample method, default is 'n' (nearest)
+    :param statistical_type: str, optional, statistical type, default is 'mean'
+    """
+    # Open the input raster
+    if str(input_raster).endswith(".tif"):
+        raster = rxr.open_rasterio(input_raster)
+    elif isinstance(input_raster, xr.DataArray):
+        raster = input_raster
+    else:
+        raise ValueError(
+            "input_raster must be a tif path or an xr.DataArray object")
+    
+    # Choose the resampling method
+    resample_dict = {
+        'n': rio.enums.Resampling.nearest,
+        'b': rio.enums.Resampling.bilinear,
+        'c': rio.enums.Resampling.cubic,
+        # Add more options as needed
+    }
+    resampling = resample_dict.get(resample_method.lower())
+
+    # Reproject
+    raster = raster.rio.reproject(
+        dst_crs=output_crs,
+        resampling=resampling)
+
+    # Calculate the resolution ratio of the new raster
+    orig_res_x = orig_res_y = abs(raster.rio.resolution()[0])
+    scale_factor_x = int(resolution / orig_res_x)
+    scale_factor_y = int(resolution / orig_res_y)
+
+    # Statistical methods mapping
+    statistical_methods = {
+        'mean': np.nanmean,
+        'median': np.nanmedian,
+        'max': np.nanmax,
+        'min': np.nanmin,
+        'sum': np.nansum,
+        'std': np.nanstd,
+    }
+    if statistical_type in statistical_methods:
+        new_data = raster.coarsen(
+            x=scale_factor_x, y=scale_factor_y, boundary='trim').reduce(statistical_methods[statistical_type])
+    elif statistical_type == 'count':
+        new_data = raster.coarsen(
+            x=scale_factor_x, y=scale_factor_y, boundary='trim').count()
+    else:
+        raise ValueError(f"Unknown statistical type: {statistical_type}")
+    
+    # Resample to ensure new_data has the target resolution
+    new_data = new_data.rio.reproject(
+        dst_crs=output_crs,
+        resolution=resolution,
+        resampling=rio.enums.Resampling.nearest)
+
+    # Update metadata and save
+    new_data.rio.to_raster(output_raster)
+
     output_tif_name = os.path.basename(output_raster)
     print(f"{output_tif_name} saved ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())})")
