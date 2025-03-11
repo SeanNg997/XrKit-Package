@@ -13,7 +13,6 @@
 3. 安装XrKit不会附带安装运行代码所必须的库，请检查以下库是否可以正常导入：
 
 ```python
-import math
 import chardet
 import numpy
 import pandas
@@ -21,7 +20,6 @@ import geopandas
 import rasterio
 import rioxarray
 import xarray
-import multiprocessing
 import tqdm
 import affine
 import pyproj
