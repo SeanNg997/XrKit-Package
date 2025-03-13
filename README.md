@@ -2,7 +2,7 @@
 
 1. 进入GitHub的[Releases](https://github.com/SeanNg997/XrKit-Package/releases)中下载最新的whl安装包；
 2. 使用命令行进入whl安装包所在路径；
-3. 使用 `pip install ***.whl`进行安装（本次安装为更新，则使用`pip install ***.whl --upgrade`）；
+3. 使用 `pip install ***.whl`进行安装（若已安装旧版，则使用 `pip install ***.whl --upgrade`）；
 4. 在自己的代码中使用 `import xrkit`使用。
 
 # 💡XrKit库使用指南
