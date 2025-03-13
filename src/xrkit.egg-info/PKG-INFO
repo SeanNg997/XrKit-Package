@@ -16,7 +16,7 @@ License-File: LICENSE
 # 💻whl安装包使用方法
 1. 进入GitHub的[Releases](https://github.com/SeanNg997/XrKit-Package/releases)中下载最新的whl安装包；
 2. 使用命令行进入whl安装包所在路径；
-3. 使用`pip install xrkit-1.0-py3-none-any.whl`进行安装；
+3. 使用`pip install ***.whl`进行安装；
 4. 在自己的代码中使用`import xrkit`使用。
 
 

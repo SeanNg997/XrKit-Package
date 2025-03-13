@@ -336,8 +336,7 @@ def aggregate(input_raster,
               resolution,
               output_crs='EPSG:4326',
               statistical_type='mean',
-              resample_method='n',
-              align=True):
+              resample_method='n'):
     """
     20250311
     Perform upscaling on the input raster
@@ -348,7 +347,6 @@ def aggregate(input_raster,
     :param output_crs: optional, output CRS or tif path, default is 'EPSG:4326'
     :param resample_method: str, optional, resample method, default is 'n' (nearest)
     :param statistical_type: str, optional, statistical type, default is 'mean'
-    :param align: bool, optional, whether or not to align the raster when output_crs is a tif path
     """
 
     # Open the input raster
@@ -410,16 +408,10 @@ def aggregate(input_raster,
 
     # Resample to ensure new_data has the target resolution
     if str(output_crs).endswith(".tif"):
-        if align==True:
-            new_data = new_data.rio.reproject_match(
-                reference_raster,
-                resampling=rio.enums.Resampling.nearest
-            )
-        elif align==False:
-            new_data = new_data.rio.reproject(
-                dst_crs=reference_crs,
-                resolution=resolution,
-                resampling=rio.enums.Resampling.nearest)
+        new_data = new_data.rio.reproject_match(
+            reference_raster,
+            resampling=rio.enums.Resampling.nearest
+        )
     elif str(output_crs).lower().startswith("epsg"):
         new_data = new_data.rio.reproject(
             dst_crs=output_crs,
