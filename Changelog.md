@@ -2,10 +2,10 @@
 
 ## 2025.03.11
 
-——发布第一版XrKit Package
+——发布XrKit 1.0。
 
 ---
 
-## 2025.03.xx
+## 2025.03.13
 
 ——删除了aggregate函数中的align参数，当“output_crs”为tif影响时，自动对齐。
