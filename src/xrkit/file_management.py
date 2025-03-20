@@ -1,43 +1,50 @@
 import os
 import time
 
-def get_files_in_directory(folder_path=os.getcwd(), extension='', rootpath=False):
+def get_files_in_directory(folder_path=os.getcwd(),
+                           extension='', 
+                           rootpath=False):
     """
-    20250113
-    Get all files in the folder with the specified extension.
+    Get a list of file names in a specified folder.
     
-    :param folder_path: The folder path.
-    :param end: The extension of the file.
-    :param rootpath: Whether to include the root path.
-    :return num_filesList: The number of files.
-    :return filesList: The list of files.
+    Parameters
+    ----------
+    folder_path : str, optional
+        The path of the folder (default is the current working directory).
+    extension : str, optional
+        The file extension to filter by (default is '' for no filtering).
+    rootpath : bool, optional
+        Whether to include the full path of files (default is False).
+    
+    Returns
+    -------
+    list
+        A list of file names (with or without the full path, based on `rootpath`).
+    
+    Updated
+    -------
+    20250320
     """
 
-    # Initialize the list of files.
+    # If the folder does not exist, raise an error.
+    if not os.path.isdir(folder_path):
+        raise ValueError("The folder does not exist.")
+    
+    # initialization
     filesList = []
 
-    # If the folder does not exist, return the number of files and the list of files.
-    if not os.path.exists(folder_path):
-        print("The folder does not exist.")
-        return filesList
-    
-    # If the extension is not empty, get the file list with the specified extension.
-    if extension != '':
-
-        # If the extension does not start with '.', add '.' to the extension.
+    if extension == '':
+        for root, dirs, files in os.walk(folder_path):
+            for file in files:
+                filesList.append(file)
+    else:
         if extension[0] != '.':
             extension = '.' + extension
         
         for root, dirs, files in os.walk(folder_path):
             for file in files:
-                if file.lower().endswith(extension.lower()):  # 忽略大小写
+                if file.lower().endswith(extension.lower()):
                     filesList.append(file)
-
-    # If the extension is empty, get all the files.
-    else:
-        for root, dirs, files in os.walk(folder_path):
-            for file in files:
-                filesList.append(file)
 
     # If rootpath is True, add the root path to the file name.
     if rootpath:
@@ -49,11 +56,23 @@ def get_files_in_directory(folder_path=os.getcwd(), extension='', rootpath=False
     # Return the number of files and the list of files.
     return filesList
 
-def print_file_save_time(filename = 'File'):
+def print_file_save_time(filename: str):
     """
-    20250114
-    Print the time when the file is saved.
+    Print the save time of the file.
     
-    :param filename: The name of the file.
+    Parameters
+    ----------
+    filename : str
+        The name of the file.
+    
+    Returns
+    -------
+    none
+    
+    Updated
+    -------
+    20250320
     """
-    print(f"{filename} saved ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())})")
+    
+    t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    print(f"{filename} saved ({t})")
