@@ -720,8 +720,6 @@ def aggregate_i(input_file: xr.DataArray,
     """
 
     # Error check
-    if not str(input_file).endswith(".tif"):
-        raise ValueError("input_file must be a path to a tif file.")
     if resolution <= 0:
         raise ValueError("resolution must be greater than 0.")
     if resample_method not in ['n', 'b', 'c']:
