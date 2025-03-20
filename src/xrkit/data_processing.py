@@ -125,8 +125,8 @@ def zonal_statistics(value_file: str,
     # Read the zone data and value data
     if str(zone_file).endswith(".shp"):
         zone_data = gpd.read_file(zone_file)
-
         value_data = rxr.open_rasterio(value_file, masked=True)
+        
         value_data = value_data.rio.clip(
             zone_data.geometry.values, zone_data.crs, from_disk=True
         ).sel(band=1).drop_vars("band").astype(float)
@@ -222,31 +222,34 @@ def zonal_statistics(value_file: str,
     else:
         if zone_data[zone_field].dtype == 'object':
             # Map the zonal_stat.index to the zone_field column
+            zonal_stat['zone_value'] = zonal_stat.index
             zonal_stat['classes'] = zonal_stat.index.map(
                 zone_data.set_index('zone')[zone_field])
             zonal_stat.reset_index(drop=True, inplace=True)
         else:
+            zonal_stat['zone_value'] = zonal_stat.index
             zonal_stat['classes'] = zonal_stat.index
             zonal_stat.reset_index(drop=True, inplace=True)
 
     # Assign the results of zonal_stat to the tif file
-    if bins is not None:
-        for i in range(len(zonal_stat)):
-            combined_data['zone'].values[combined_data['zone'].values ==
-                                            zonal_stat.loc[i, 'zone_value']] = zonal_stat.loc[i, statistical_type]
-    else:
-        for i in range(len(zonal_stat)):
-            combined_data['zone'].values[combined_data['zone'].values ==
-                                            zonal_stat.loc[i, 'classes']] = zonal_stat.loc[i, statistical_type]
+    for i in range(len(zonal_stat)):
+        combined_data['zone'].values[combined_data['zone'].values ==
+                                        zonal_stat.loc[i, 'zone_value']] = zonal_stat.loc[i, statistical_type]
 
     # Export to output_file
-    combined_data['zone'].rio.to_raster(output_file, compress='LZW')
-    print(f"{os.path.basename(output_file)} saved ({time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())})")
+    combined_data['zone'].rio.to_raster(output_file)
+    file_name = os.path.basename(output_file)
+    t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    print(f"{file_name} saved ({t})")
 
     # If zonal_stat has 'zone_value' column, drop it
     if 'zone_value' in zonal_stat.columns:
         zonal_stat.drop(columns='zone_value', inplace=True)
 
+    # 把zonal_stat的classes列调整到第一列
+    # Move the 'classes' column to the first position
+    cols = ['classes'] + [col for col in zonal_stat.columns if col != 'classes']
+    zonal_stat = zonal_stat[cols]
     return zonal_stat
 
 
@@ -385,26 +388,25 @@ def zonal_statistics_i(value_file: xr.DataArray,
     else:
         if zone_data[zone_field].dtype == 'object':
             # Map the zonal_stat.index to the zone_field column
+            zonal_stat['zone_value'] = zonal_stat.index
             zonal_stat['classes'] = zonal_stat.index.map(
                 zone_data.set_index('zone')[zone_field])
             zonal_stat.reset_index(drop=True, inplace=True)
         else:
+            zonal_stat['zone_value'] = zonal_stat.index
             zonal_stat['classes'] = zonal_stat.index
             zonal_stat.reset_index(drop=True, inplace=True)
 
     # Assign the results of zonal_stat to the tif file
-    if bins is not None:
-        for i in range(len(zonal_stat)):
-            combined_data['zone'].values[combined_data['zone'].values ==
-                                            zonal_stat.loc[i, 'zone_value']] = zonal_stat.loc[i, statistical_type]
-    else:
-        for i in range(len(zonal_stat)):
-            combined_data['zone'].values[combined_data['zone'].values ==
-                                            zonal_stat.loc[i, 'classes']] = zonal_stat.loc[i, statistical_type]
+    for i in range(len(zonal_stat)):
+        combined_data['zone'].values[combined_data['zone'].values ==
+                                        zonal_stat.loc[i, 'zone_value']] = zonal_stat.loc[i, statistical_type]
 
     # If zonal_stat has 'zone_value' column, drop it
     if 'zone_value' in zonal_stat.columns:
         zonal_stat.drop(columns='zone_value', inplace=True)
+    cols = ['classes'] + [col for col in zonal_stat.columns if col != 'classes']
+    zonal_stat = zonal_stat[cols]
 
     return zonal_stat, combined_data
 
